@@ -4,33 +4,45 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const token_hash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
 
-  if (code) {
-    const response = NextResponse.redirect(`${origin}/`);
+  const response = NextResponse.redirect(`${origin}/`);
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            );
-          },
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
         },
-      }
-    );
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return response;
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
     }
-    console.error("Auth callback error:", error.message);
+  );
+
+  // PKCEフロー（マジックリンク）
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) return response;
+    console.error("Auth callback (code) error:", error.message);
   }
 
-  return NextResponse.redirect(`${origin}/login`);
+  // メール確認フロー（Confirm your mail）
+  if (token_hash && type) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash,
+      type: type as any,
+    });
+    if (!error) return response;
+    console.error("Auth callback (token_hash) error:", error.message);
+  }
+
+  // 失敗時はログインページへ
+  return NextResponse.redirect(`${origin}/login?error=auth`);
 }

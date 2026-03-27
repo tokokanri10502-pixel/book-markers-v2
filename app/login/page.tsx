@@ -75,7 +75,7 @@ export default function LoginPage() {
             <p className="text-slate-400 text-sm">
               <span className="text-gold-400">{email}</span> に<br />
               ログインリンクを送りました。<br />
-              メール内の「Log In」をタップしてください。
+              メール内の「Confirm your mail」をタップしてください。
             </p>
             <button
               onClick={() => { setSent(false); setEmail(""); }}
