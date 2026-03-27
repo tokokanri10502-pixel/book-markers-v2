@@ -175,7 +175,7 @@ export default function AnalysisClient({ books }: { books: Book[] }) {
       )}
 
       {/* --- MONTHLY TREND --- */}
-      <section className="px-6 mb-24">
+      <section className="px-6 mb-20">
         <h2 className="text-slate-300 font-serif font-bold text-lg mb-6 flex items-center gap-3">
           <TrendingUp size={20} className="text-gold-500" />
           月次の推移（直近6ヶ月）
