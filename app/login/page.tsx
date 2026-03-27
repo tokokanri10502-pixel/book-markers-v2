@@ -1,31 +1,76 @@
 "use client";
 
 import { createClient } from "@/lib/supabase-browser";
-import { useState } from "react";
+import { useState, useRef } from "react";
+
+type Step = "email" | "code" | "success";
 
 export default function LoginPage() {
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const supabase = createClient();
 
-  const handleSend = async () => {
+  // ① メール送信
+  const handleSendEmail = async () => {
     if (!email) return;
     setLoading(true);
     setError("");
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { shouldCreateUser: true },
     });
     setLoading(false);
     if (error) {
       setError(`送信失敗: ${error.message}`);
     } else {
-      setSent(true);
+      setStep("code");
+    }
+  };
+
+  // ② コード入力
+  const handleCodeChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const newCode = [...code];
+    newCode[index] = digit;
+    setCode(newCode);
+    if (digit && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+    // 6桁揃ったら自動送信
+    if (newCode.every((d) => d !== "") && newCode.join("").length === 6) {
+      handleVerify(newCode.join(""));
+    }
+  };
+
+  const handleCodeKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  // ③ コード検証
+  const handleVerify = async (token: string) => {
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+    setLoading(false);
+    if (error) {
+      setError("コードが正しくありません。再度お試しください。");
+      setCode(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } else {
+      setStep("success");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     }
   };
 
@@ -45,44 +90,80 @@ export default function LoginPage() {
 
       <div className="text-7xl select-none">📚</div>
 
-      {/* フォーム */}
       <div className="w-full flex flex-col gap-4">
-        {!sent ? (
+
+        {/* STEP 1: メールアドレス入力 */}
+        {step === "email" && (
           <>
             <p className="text-slate-400 text-sm text-center">
-              メールアドレスにログインリンクを送ります
+              メールアドレスに6桁のコードを送ります
             </p>
             <input
               type="email"
               placeholder="メールアドレス"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              onKeyDown={(e) => e.key === "Enter" && handleSendEmail()}
               className="w-full bg-navy-900 border border-slate-700 rounded-2xl py-4 px-5 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-gold-500/50 text-center"
             />
             <button
-              onClick={handleSend}
+              onClick={handleSendEmail}
               disabled={loading || !email}
               className="w-full bg-gold-500 text-navy-950 font-bold py-4 rounded-2xl active:scale-95 transition-transform disabled:opacity-50"
             >
-              {loading ? "送信中..." : "ログインリンクを送信"}
+              {loading ? "送信中..." : "コードを送信"}
             </button>
           </>
-        ) : (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="text-5xl">📬</div>
-            <p className="text-slate-100 font-bold text-lg">メールを確認してください</p>
-            <p className="text-slate-400 text-sm">
-              <span className="text-gold-400">{email}</span> に<br />
-              ログインリンクを送りました。<br />
-              メール内の「Confirm your mail」をタップしてください。
-            </p>
+        )}
+
+        {/* STEP 2: コード入力 */}
+        {step === "code" && (
+          <div className="flex flex-col items-center gap-6">
+            <div className="text-center">
+              <p className="text-slate-100 font-bold text-lg">メールを確認してください</p>
+              <p className="text-slate-400 text-sm mt-1">
+                <span className="text-gold-400">{email}</span> に<br />
+                6桁のコードを送りました
+              </p>
+            </div>
+
+            {/* 6桁入力 */}
+            <div className="flex gap-2">
+              {code.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { inputRefs.current[i] = el; }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleCodeChange(i, e.target.value)}
+                  onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                  className="w-11 h-14 bg-navy-900 border border-slate-700 rounded-xl text-slate-100 text-xl font-bold text-center focus:outline-none focus:border-gold-500 focus:bg-navy-800"
+                  autoFocus={i === 0}
+                />
+              ))}
+            </div>
+
+            {loading && (
+              <p className="text-slate-400 text-sm">確認中...</p>
+            )}
+
             <button
-              onClick={() => { setSent(false); setEmail(""); }}
-              className="text-slate-500 text-sm mt-2"
+              onClick={() => { setStep("email"); setCode(["","","","","",""]); setError(""); }}
+              className="text-slate-500 text-sm"
             >
-              別のメールアドレスで試す
+              メールアドレスを変更する
             </button>
+          </div>
+        )}
+
+        {/* STEP 3: 成功 */}
+        {step === "success" && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-5xl">✅</div>
+            <p className="text-slate-100 font-bold">ログイン成功！</p>
+            <p className="text-slate-400 text-sm">移動中...</p>
           </div>
         )}
 
