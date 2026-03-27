@@ -40,7 +40,8 @@ export default function ScanPage() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<BookStatus>("plan");
   const [celebration, setCelebration] = useState<{ show: boolean; count: number }>({ show: false, count: 0 });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);      // カメラ用
+  const galleryInputRef = useRef<HTMLInputElement>(null);   // ギャラリー用
 
   const startScan = async (base64Image: string) => {
     setIsScanning(true);
@@ -157,7 +158,8 @@ export default function ScanPage() {
       <nav className="p-6 flex items-center justify-between z-10">
         <Link
           href="/"
-          className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl hover:bg-navy-800 transition-colors"
+          className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl transition-colors"
+          style={{ touchAction: "manipulation" }}
         >
           <ArrowLeft size={20} className="text-slate-400" />
         </Link>
@@ -205,17 +207,26 @@ export default function ScanPage() {
                   <Camera size={24} /> 撮影を開始する
                 </button>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => galleryInputRef.current?.click()}
                   className="flex items-center justify-center gap-2 text-slate-400 font-bold hover:text-slate-200 transition-colors py-3"
                 >
                   <Upload size={18} /> ギャラリーから選択
                 </button>
+                {/* カメラ起動用 */}
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   accept="image/*"
                   capture="environment"
+                  className="hidden"
+                />
+                {/* ギャラリー選択用（capture なし） */}
+                <input
+                  type="file"
+                  ref={galleryInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
                   className="hidden"
                 />
               </div>

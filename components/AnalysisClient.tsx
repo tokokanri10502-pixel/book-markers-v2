@@ -74,7 +74,7 @@ export default function AnalysisClient({ books }: { books: Book[] }) {
     <div className="flex flex-col min-h-screen pb-32 pt-8">
       {/* --- HEADER --- */}
       <header className="px-6 mb-8 flex items-center justify-between">
-        <Link href="/" className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl hover:bg-navy-800 transition-colors">
+        <Link href="/" className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl transition-colors" style={{ touchAction: "manipulation" }}>
           <ArrowLeft size={20} className="text-slate-400" />
         </Link>
         <h1 className="text-xl font-serif font-bold text-slate-100 italic">読書分析</h1>
@@ -216,11 +216,11 @@ export default function AnalysisClient({ books }: { books: Book[] }) {
 
 function NavBtn({ href, icon, active, label }: { href: string; icon: React.ReactNode; active?: boolean; label: string }) {
   return (
-    <Link href={href} className="flex flex-col items-center gap-1 group">
-      <div className={`p-2.5 rounded-2xl transition-all ${active ? "bg-gold-500/15 text-gold-500 shadow-md shadow-gold-500/10 ring-1 ring-gold-500/30" : "text-slate-600 hover:text-slate-400"}`}>
+    <Link href={href} className="flex flex-col items-center gap-1" style={{ touchAction: "manipulation" }}>
+      <div className={`p-2.5 rounded-2xl transition-all ${active ? "bg-gold-500/15 text-gold-500 shadow-md shadow-gold-500/10 ring-1 ring-gold-500/30" : "text-slate-500"}`}>
         {icon}
       </div>
-      <span className={`text-[10px] font-bold font-sans uppercase tracking-[0.2em] transition-colors ${active ? "text-gold-500" : "text-slate-600"}`}>
+      <span className={`text-[10px] font-bold font-sans uppercase tracking-[0.2em] transition-colors ${active ? "text-gold-500" : "text-slate-500"}`}>
         {label}
       </span>
     </Link>

@@ -259,11 +259,11 @@ function FilterTab({ active, label, onClick }: { active: boolean; label: string;
 
 function NavBtn({ href, icon, active, label }: { href: string; icon: React.ReactNode; active?: boolean; label: string }) {
   return (
-    <Link href={href} className="flex flex-col items-center gap-1 group">
-      <div className={`p-2.5 rounded-2xl transition-all ${active ? "bg-gold-500/15 text-gold-500 shadow-md shadow-gold-500/10 ring-1 ring-gold-500/30" : "text-slate-600 hover:text-slate-400"}`}>
+    <Link href={href} className="flex flex-col items-center gap-1" style={{ touchAction: "manipulation" }}>
+      <div className={`p-2.5 rounded-2xl transition-all ${active ? "bg-gold-500/15 text-gold-500 shadow-md shadow-gold-500/10 ring-1 ring-gold-500/30" : "text-slate-500"}`}>
         {icon}
       </div>
-      <span className={`text-[10px] font-bold font-sans uppercase tracking-[0.2em] transition-colors ${active ? "text-gold-500" : "text-slate-600"}`}>
+      <span className={`text-[10px] font-bold font-sans uppercase tracking-[0.2em] transition-colors ${active ? "text-gold-500" : "text-slate-500"}`}>
         {label}
       </span>
     </Link>

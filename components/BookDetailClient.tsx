@@ -55,8 +55,8 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
     try {
       const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("削除に失敗しました");
-      router.refresh(); // サーバーキャッシュを無効化してからホームへ
-      router.push("/");
+      // フルリロードでキャッシュを確実に破棄してホームへ
+      window.location.href = "/";
     } catch (error) {
       console.error("Delete error:", error);
       alert("削除に失敗しました。");
@@ -70,7 +70,8 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
       <header className="px-6 mb-8 flex items-center justify-between">
         <button
           onClick={() => router.back()}
-          className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl hover:bg-navy-800 transition-colors"
+          className="p-2 bg-navy-900 border border-slate-700/50 rounded-2xl transition-colors"
+          style={{ touchAction: "manipulation" }}
         >
           <ArrowLeft size={20} className="text-slate-400" />
         </button>
