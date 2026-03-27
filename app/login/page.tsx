@@ -52,6 +52,21 @@ export default function LoginPage() {
     }
   };
 
+  // ペースト対応
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+    if (!pasted) return;
+    const newCode = [...code];
+    pasted.split("").forEach((digit, i) => { newCode[i] = digit; });
+    setCode(newCode);
+    const nextIndex = Math.min(pasted.length, 7);
+    inputRefs.current[nextIndex]?.focus();
+    if (pasted.length === 8) {
+      handleVerify(pasted);
+    }
+  };
+
   // ③ コード検証
   const handleVerify = async (token: string) => {
     setLoading(true);
@@ -139,6 +154,7 @@ export default function LoginPage() {
                   value={digit}
                   onChange={(e) => handleCodeChange(i, e.target.value)}
                   onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                  onPaste={handlePaste}
                   className="w-9 h-12 bg-navy-900 border border-slate-700 rounded-xl text-slate-100 text-lg font-bold text-center focus:outline-none focus:border-gold-500 focus:bg-navy-800"
                   autoFocus={i === 0}
                 />
