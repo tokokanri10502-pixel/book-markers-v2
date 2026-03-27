@@ -129,8 +129,7 @@ export default function ScanPage() {
       if (count % 5 === 0) {
         setCelebration({ show: true, count });
       } else {
-        router.refresh();
-        router.push("/");
+        window.location.href = "/"; // フルリロードでキャッシュを確実にリセット
       }
     } catch (error: any) {
       console.error("Register error:", error);
@@ -152,7 +151,7 @@ export default function ScanPage() {
       <ConciergeCelebration
         show={celebration.show}
         count={celebration.count}
-        onClose={() => { router.refresh(); router.push("/"); }}
+        onClose={() => { window.location.href = "/"; }}
       />
       {/* --- NAV BAR --- */}
       <nav className="p-6 flex items-center justify-between z-10">
