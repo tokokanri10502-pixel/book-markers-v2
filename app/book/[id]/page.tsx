@@ -1,9 +1,12 @@
 import { getBook } from "@/lib/books";
+import { createClient } from "@/lib/supabase-server";
 import BookDetailClient from "@/components/BookDetailClient";
 import Link from "next/link";
 
 export default async function BookDetailPage({ params }: { params: { id: string } }) {
-  const book = await getBook(params.id);
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const book = user ? await getBook(params.id, user.id) : null;
 
   if (!book) {
     return (
