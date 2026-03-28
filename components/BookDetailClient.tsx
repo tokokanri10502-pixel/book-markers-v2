@@ -14,9 +14,10 @@ import {
   CheckCircle2,
   Bookmark,
   Loader2,
+  Share2,
+  Copy,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Book, BookStatus } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -26,6 +27,7 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
   const [book, setBook] = useState(initialBook);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<BookStatus>(initialBook.status);
   const [rating, setRating] = useState(initialBook.rating || 0);
   const [review, setReview] = useState(initialBook.review || "");
@@ -61,6 +63,36 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
       console.error("Delete error:", error);
       alert("削除に失敗しました。");
       setIsDeleting(false);
+    }
+  };
+
+  const buildShareText = () => {
+    const stars = rating ? "⭐".repeat(rating) : "";
+    const statusLabel = status === "done" ? "読了" : status === "reading" ? "読書中" : "積読";
+    const lines = [
+      `📚 ${book.title}`,
+      `✍️ ${book.author}`,
+      stars,
+      `【${statusLabel}】`,
+      review ? `\n${review}` : "",
+      "\n#BookMemories #読書記録",
+    ].filter(Boolean);
+    return lines.join("\n");
+  };
+
+  const handleShare = async () => {
+    const text = buildShareText();
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // キャンセル時は何もしない
+      }
+    } else {
+      // Web Share API 非対応の場合はクリップボードにコピー
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -171,6 +203,17 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
               <><Loader2 size={20} className="animate-spin" /> 保存中...</>
             ) : (
               <><Check size={20} /> 記録を保存する</>
+            )}
+          </button>
+
+          <button
+            onClick={handleShare}
+            className="btn-secondary w-full py-4 text-base"
+          >
+            {copied ? (
+              <><Copy size={18} className="text-gold-500" /> コピーしました</>
+            ) : (
+              <><Share2 size={18} /> この本をシェアする</>
             )}
           </button>
         </div>
