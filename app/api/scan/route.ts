@@ -1,16 +1,35 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+// base64 文字列の上限: 約 2MB（圧縮後）
+const MAX_BASE64_LENGTH = 3 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   try {
+    // 認証チェック
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { image } = await req.json(); // base64 data URL
 
     if (!image) {
       return NextResponse.json(
         { error: "No image data provided" },
         { status: 400 }
+      );
+    }
+
+    // 画像サイズ制限
+    if (image.length > MAX_BASE64_LENGTH) {
+      return NextResponse.json(
+        { error: "Image too large" },
+        { status: 413 }
       );
     }
 
@@ -68,8 +87,6 @@ export async function POST(req: NextRequest) {
     const response = await result.response;
     const text = response.text();
 
-    console.log("Gemini raw response:", text);
-
     // Parse JSON — responseMimeType should give clean JSON,
     // but add fallback cleanup just in case
     let data;
@@ -115,7 +132,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Gemini Scan Error:", error?.message || error);
     return NextResponse.json(
-      { error: error?.message || "スキャンに失敗しました" },
+      { error: "スキャンに失敗しました" },
       { status: 500 }
     );
   }
