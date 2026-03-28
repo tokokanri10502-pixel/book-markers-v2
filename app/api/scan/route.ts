@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
           .join("+");
 
         const booksRes = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`
+          `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1&langRestrict=ja`
         );
         const booksData = await booksRes.json();
 
