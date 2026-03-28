@@ -262,7 +262,7 @@ export default function BookListClient({ books }: { books: Book[] }) {
               ))}
             </div>
             ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {filteredBooks.map((book, idx) => (
                 <Link key={book.id} href={`/book/${book.id}`}>
                   <motion.div
