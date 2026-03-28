@@ -36,7 +36,7 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
       const res = await fetch(`/api/books/${book.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, rating, review }),
+        body: JSON.stringify({ status, rating: rating || null, review }),
       });
       if (!res.ok) throw new Error("保存に失敗しました");
       setBook({ ...book, status, rating, review });
