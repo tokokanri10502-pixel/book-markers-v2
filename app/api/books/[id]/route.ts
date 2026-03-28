@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase-server";
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { error } = await supabase
@@ -24,7 +25,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();

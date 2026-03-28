@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase-server";
 export async function GET() {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) return NextResponse.json({ count: 0 });
 
     const count = await getBooksCount(user.id);
