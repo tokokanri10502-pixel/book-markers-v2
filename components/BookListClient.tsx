@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Camera,
   BookOpen,
@@ -12,17 +12,39 @@ import {
   CheckCircle2,
   Clock,
   Bookmark,
+  Search,
+  X,
+  ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Book, BookStatus } from "@/lib/types";
 
+type SortKey = "newest" | "oldest" | "title" | "rating";
+
 export default function BookListClient({ books }: { books: Book[] }) {
   const [filter, setFilter] = useState<BookStatus | "all">("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("newest");
 
-  const filteredBooks = books.filter(
-    (b) => filter === "all" || b.status === filter
-  );
+  const filteredBooks = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return books
+      .filter((b) => filter === "all" || b.status === filter)
+      .filter(
+        (b) =>
+          !query ||
+          b.title.toLowerCase().includes(query) ||
+          b.author.toLowerCase().includes(query)
+      )
+      .sort((a, b) => {
+        if (sort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sort === "title") return a.title.localeCompare(b.title, "ja");
+        if (sort === "rating") return (b.rating ?? 0) - (a.rating ?? 0);
+        return 0;
+      });
+  }, [books, filter, search, sort]);
 
   return (
     <div className="flex flex-col pb-24 pt-8">
@@ -145,12 +167,47 @@ export default function BookListClient({ books }: { books: Book[] }) {
       )}
 
       {/* --- FILTER TABS --- */}
-      <section className="px-6 mb-6">
+      <section className="px-6 mb-4">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
           <FilterTab active={filter === "all"} onClick={() => setFilter("all")} label="すべて" />
           <FilterTab active={filter === "reading"} onClick={() => setFilter("reading")} label="読書中" />
           <FilterTab active={filter === "done"} onClick={() => setFilter("done")} label="読了済" />
           <FilterTab active={filter === "plan"} onClick={() => setFilter("plan")} label="積読" />
+        </div>
+      </section>
+
+      {/* --- SEARCH & SORT --- */}
+      <section className="px-6 mb-6 flex gap-2 items-center">
+        <div className="relative flex-grow">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="タイトル・著者で検索..."
+            className="w-full bg-navy-900/60 border border-slate-700/50 rounded-2xl pl-9 pr-9 py-2.5 text-sm text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-gold-500/50 transition-colors"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="relative flex-shrink-0">
+          <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="bg-navy-900/60 border border-slate-700/50 rounded-2xl pl-8 pr-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-gold-500/50 transition-colors appearance-none cursor-pointer"
+          >
+            <option value="newest">新着順</option>
+            <option value="oldest">古い順</option>
+            <option value="title">タイトル順</option>
+            <option value="rating">評価順</option>
+          </select>
         </div>
       </section>
 
@@ -202,7 +259,7 @@ export default function BookListClient({ books }: { books: Book[] }) {
             >
               <Bookmark size={48} className="mb-4 text-slate-600" />
               <p className="text-slate-500 font-serif italic font-medium">
-                まだ記録がありません
+                {search ? `「${search}」に一致する本が見つかりません` : "まだ記録がありません"}
               </p>
             </motion.div>
           )}

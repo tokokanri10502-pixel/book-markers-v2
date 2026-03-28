@@ -35,3 +35,9 @@
 .animate-float {
   animation: float 4s ease-in-out infinite;
 }
+
+/* select のドロップダウン背景色 */
+select option {
+  background-color: #0f1a2e;
+  color: #cbd5e1;
+}
