@@ -15,6 +15,8 @@ import {
   Search,
   X,
   ArrowUpDown,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -26,6 +28,7 @@ export default function BookListClient({ books }: { books: Book[] }) {
   const [filter, setFilter] = useState<BookStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -209,12 +212,19 @@ export default function BookListClient({ books }: { books: Book[] }) {
             <option value="rating">評価順</option>
           </select>
         </div>
+        <button
+          onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+          className="flex-shrink-0 p-2.5 bg-navy-900/60 border border-slate-700/50 rounded-2xl text-slate-400 hover:text-gold-500 hover:border-gold-500/50 transition-colors"
+        >
+          {viewMode === "list" ? <LayoutGrid size={18} /> : <LayoutList size={18} />}
+        </button>
       </section>
 
-      {/* --- BOOK LIST --- */}
+      {/* --- BOOK LIST / GRID --- */}
       <section className="px-6 pb-20">
         <AnimatePresence mode="popLayout">
           {filteredBooks.length > 0 ? (
+            viewMode === "list" ? (
             <div className="flex flex-col gap-4">
               {filteredBooks.map((book, idx) => (
                 <Link key={book.id} href={`/book/${book.id}`}>
@@ -251,6 +261,43 @@ export default function BookListClient({ books }: { books: Book[] }) {
                 </Link>
               ))}
             </div>
+            ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {filteredBooks.map((book, idx) => (
+                <Link key={book.id} href={`/book/${book.id}`}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className="flex flex-col group active:scale-95 transition-transform"
+                  >
+                    <div className="relative w-full aspect-[2/3] bg-navy-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700/50 mb-2">
+                      <img
+                        src={book.cover_url}
+                        alt={book.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      {book.status === "reading" && (
+                        <div className="absolute top-1.5 left-1.5 bg-emerald-500 w-2 h-2 rounded-full ring-2 ring-navy-900 shadow-lg shadow-emerald-500/40"></div>
+                      )}
+                      {book.status === "done" && (
+                        <div className="absolute top-1.5 right-1.5 p-1 bg-gold-500/90 rounded-lg">
+                          <CheckCircle2 size={10} className="text-navy-950" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-slate-200 font-serif font-bold text-xs leading-tight line-clamp-2 px-0.5">
+                      {book.title}
+                    </p>
+                    <p className="text-slate-500 text-[10px] font-sans truncate mt-0.5 px-0.5">
+                      {book.author}
+                    </p>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+            )
           ) : (
             <motion.div
               initial={{ opacity: 0 }}
