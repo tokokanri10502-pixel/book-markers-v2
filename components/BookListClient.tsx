@@ -238,13 +238,17 @@ export default function BookListClient({ books }: { books: Book[] }) {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: idx * 0.05 }}
+                    transition={{ duration: 0.2, delay: Math.min(idx, 6) * 0.02 }}
                     className="card-premium flex gap-4 items-center group active:scale-[0.98] transition-transform"
                   >
                     <div className="w-16 h-24 flex-shrink-0 bg-navy-800 rounded-xl overflow-hidden shadow-xl border border-slate-700/50 relative">
                       <img
                         src={book.cover_url}
                         alt={book.title}
+                        width={64}
+                        height={96}
+                        loading={idx < 6 ? "eager" : "lazy"}
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       {book.status === "reading" && (
@@ -275,13 +279,17 @@ export default function BookListClient({ books }: { books: Book[] }) {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: idx * 0.03 }}
+                    transition={{ duration: 0.2, delay: Math.min(idx, 8) * 0.02 }}
                     className="flex flex-col group active:scale-95 transition-transform"
                   >
                     <div className="relative w-full aspect-[2/3] bg-navy-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700/50 mb-2">
                       <img
                         src={book.cover_url}
                         alt={book.title}
+                        width={200}
+                        height={300}
+                        loading={idx < 8 ? "eager" : "lazy"}
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       {book.status === "reading" && (
