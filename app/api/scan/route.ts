@@ -193,10 +193,17 @@ export async function POST(req: NextRequest) {
         .gte("created_at", since);
 
       if (totalCount === 1) {
-        await sendAlertEmail(
-          "🆕 BOOK MEMORIES: 新しい利用者",
-          `新しい利用者が初めてスキャンを使いました。\n\nメール: ${userEmail}\nユーザーID: ${userId}`
-        );
+        // すでに本を登録済み＝既存利用者は除外し、本当に新しい人だけ通知
+        const { count: bookCount } = await supabase
+          .from("books")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
+        if (!bookCount) {
+          await sendAlertEmail(
+            "🆕 BOOK MEMORIES: 新しい利用者",
+            `新しい利用者が初めてスキャンを使いました。\n\nメール: ${userEmail}\nユーザーID: ${userId}`
+          );
+        }
       }
 
       // しきい値をちょうど超えた瞬間に1通だけ（以降その日は再送しない）
