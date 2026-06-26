@@ -22,9 +22,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser()でトークンの有効性を検証＆期限切れなら自動更新 → 長期セッションを維持
-  // 各ページでは getSession()（クッキー読み込みのみ）を使うため、ここだけネットワーク通信が発生
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession() はクッキーからセッションを読み取り（ネットワーク通信なし）、
+  // トークン期限切れ時のみ自動更新する。getUser() は毎回サーバー検証で約0.5秒かかるため、
+  // リダイレクト判定にはクッキー読み取りで十分（各データアクセスは Supabase 側で
+  // JWT検証＋RLS により保護されるため、ここでの判定をクッキー基準にしても安全）。
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   // 未ログインなら /login へリダイレクト
   if (!user && !request.nextUrl.pathname.startsWith("/login") && !request.nextUrl.pathname.startsWith("/auth")) {
