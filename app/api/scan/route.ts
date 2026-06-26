@@ -7,6 +7,33 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 // base64 文字列の上限: 約 2MB（圧縮後）
 const MAX_BASE64_LENGTH = 3 * 1024 * 1024;
 
+// 使いすぎ警告のしきい値（直近24時間/1ユーザー）。環境変数で変更可、既定30回。
+const SCAN_ALERT_THRESHOLD = Number(process.env.SCAN_ALERT_THRESHOLD || 30);
+
+// アラートメール送信（Resend）。未設定なら何もしない＝スキャン本体には影響なし。
+async function sendAlertEmail(subject: string, text: string) {
+  const key = process.env.RESEND_API_KEY;
+  const to = process.env.ALERT_EMAIL;
+  if (!key || !to) return; // 未設定時はスキップ（フェイルセーフ）
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "BOOK MEMORIES Alert <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        text,
+      }),
+    });
+  } catch (e) {
+    console.error("Alert email failed:", e);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     // 認証チェック
@@ -14,6 +41,25 @@ export async function POST(req: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+    const userEmail = session.user.email ?? "unknown";
+
+    // 緊急停止スイッチの確認（テーブル未作成/エラー時は既定で「許可」＝既存挙動を壊さない）
+    try {
+      const { data: settings } = await supabase
+        .from("book_app_settings")
+        .select("scan_enabled")
+        .eq("id", 1)
+        .single();
+      if (settings && settings.scan_enabled === false) {
+        return NextResponse.json(
+          { error: "スキャン機能は現在一時停止中です。しばらくお待ちください。" },
+          { status: 503 }
+        );
+      }
+    } catch {
+      /* 設定テーブルが無い/読めない場合はスキャンを継続 */
     }
 
     const { image } = await req.json(); // base64 data URL
@@ -126,6 +172,45 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error("Google Books API error:", e);
       }
+    }
+
+    // --- スキャン記録 & 使いすぎ/新規利用の通知（best-effort。失敗してもスキャン結果は返す） ---
+    try {
+      await supabase.from("scan_logs").insert({ user_id: userId, email: userEmail });
+
+      // 全期間の合計（初回スキャン検知用）
+      const { count: totalCount } = await supabase
+        .from("scan_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      // 直近24時間の回数（使いすぎ検知用）
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count: dayCount } = await supabase
+        .from("scan_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", since);
+
+      if (totalCount === 1) {
+        await sendAlertEmail(
+          "🆕 BOOK MEMORIES: 新しい利用者",
+          `新しい利用者が初めてスキャンを使いました。\n\nメール: ${userEmail}\nユーザーID: ${userId}`
+        );
+      }
+
+      // しきい値をちょうど超えた瞬間に1通だけ（以降その日は再送しない）
+      if (dayCount === SCAN_ALERT_THRESHOLD) {
+        await sendAlertEmail(
+          "⚠️ BOOK MEMORIES: 使いすぎ警告",
+          `直近24時間で ${SCAN_ALERT_THRESHOLD} 回スキャンした利用者がいます。\n\n` +
+            `メール: ${userEmail}\nユーザーID: ${userId}\n\n` +
+            `心当たりが無ければ、SupabaseダッシュボードでこのユーザーをBANするか、\n` +
+            `book_app_settings の scan_enabled を false にしてスキャンを全停止できます。`
+        );
+      }
+    } catch (e) {
+      console.error("scan logging/alert error:", e);
     }
 
     return NextResponse.json({ ...data, cover_url: coverUrl });
