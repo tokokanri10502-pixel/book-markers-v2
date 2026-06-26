@@ -1,0 +1,28 @@
+name: Supabase Keep-Warm
+
+# 目的: SupabaseのDB（無料プラン）が長時間アイドルで冷えるのを防ぐため、
+#       数分おきに最小限のSELECTを1回投げてコンピュートを温め続ける。
+# 安全性: 読み取り(select id limit 1)のみ。書き込み・削除は一切しない。
+#         owner限定RLSにより実際の行は返らない（0件）が、クエリ実行でDBは温まる。
+# 使うキーは publishable(anon) キーで、元々クライアントに公開されるもの＝秘匿情報ではない。
+
+on:
+  schedule:
+    # 5分間隔（GitHubのcronは混雑時に遅延することがある＝実際は10〜20分間隔程度）
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {} # 手動実行も可能
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST to keep DB warm
+        env:
+          SUPABASE_URL: https://eikjognegxcvvwuqeovz.supabase.co
+          SUPABASE_KEY: sb_publishable_bkh9T0970eCRYR2chIkZ9A_Z52KizCE
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code} TTFB=%{time_starttransfer}s" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+            "${SUPABASE_URL}/rest/v1/books?select=id&limit=1")
+          echo "warmup -> $code"
