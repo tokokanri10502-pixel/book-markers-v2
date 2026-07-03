@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Star,
@@ -29,28 +29,63 @@ export default function BookDetailClient({ book: initialBook, userId }: { book: 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [status, setStatus] = useState<BookStatus>(initialBook.status);
-  const [rating, setRating] = useState(initialBook.rating || 0);
-  const [review, setReview] = useState(initialBook.review || "");
+  const [status, setStatusState] = useState<BookStatus>(initialBook.status);
+  const [rating, setRatingState] = useState(initialBook.rating || 0);
+  const [review, setReviewState] = useState(initialBook.review || "");
+  // ユーザーが触った項目の記録。保存時はこの項目だけ送信することで、
+  // 古いキャッシュ由来のフォーム値が別端末の新しい編集を上書きするのを防ぐ
+  const dirtyRef = useRef({ status: false, rating: false, review: false });
+
+  // バックグラウンド再取得で新しいデータが届いたら、未編集の項目だけ差し替える
+  useEffect(() => {
+    setBook(initialBook);
+    if (!dirtyRef.current.status) setStatusState(initialBook.status);
+    if (!dirtyRef.current.rating) setRatingState(initialBook.rating || 0);
+    if (!dirtyRef.current.review) setReviewState(initialBook.review || "");
+  }, [initialBook]);
+
+  const setStatus = (v: BookStatus) => {
+    dirtyRef.current.status = true;
+    setStatusState(v);
+  };
+  const setRating = (v: number) => {
+    dirtyRef.current.rating = true;
+    setRatingState(v);
+  };
+  const setReview = (v: string) => {
+    dirtyRef.current.review = true;
+    setReviewState(v);
+  };
 
   const handleSave = async () => {
+    // 触った項目だけ送る
+    const updates: { status?: BookStatus; rating?: number | null; review?: string } = {};
+    if (dirtyRef.current.status) updates.status = status;
+    if (dirtyRef.current.rating) updates.rating = rating || null;
+    if (dirtyRef.current.review) updates.review = review;
+    if (Object.keys(updates).length === 0) {
+      alert("保存しました。");
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch(`/api/books/${book.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, rating: rating || null, review }),
+        body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error("保存に失敗しました");
       const updated_at = new Date().toISOString();
-      setBook({ ...book, status, rating, review, updated_at });
-      // ホーム一覧のキャッシュにも反映（再取得なしで一覧と整合させる）
-      patchBookInCache(userId, book.id, {
-        status,
-        rating: rating || undefined,
-        review,
+      const cachePatch = {
         updated_at,
-      });
+        ...(dirtyRef.current.status ? { status } : {}),
+        ...(dirtyRef.current.rating ? { rating: rating || undefined } : {}),
+        ...(dirtyRef.current.review ? { review } : {}),
+      };
+      setBook({ ...book, ...cachePatch });
+      // ホーム一覧のキャッシュにも反映（再取得なしで一覧と整合させる）
+      patchBookInCache(userId, book.id, cachePatch);
+      dirtyRef.current = { status: false, rating: false, review: false };
       alert("保存しました。");
     } catch (error) {
       console.error("Save error:", error);

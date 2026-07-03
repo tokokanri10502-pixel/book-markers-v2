@@ -20,6 +20,9 @@ const withPWA = withPWAInit({
           cacheName: "pages-navigate",
           networkTimeoutSeconds: 2,
           expiration: { maxEntries: 16, maxAgeSeconds: 24 * 60 * 60 },
+          // middlewareの307(opaqueredirect, status 0)をキャッシュすると、遅い回線で
+          // 過去のリダイレクトが再生されログイン済みでも/loginへ飛ばされるため200のみ保存
+          cacheableResponse: { statuses: [200] },
         },
       },
     ],

@@ -22,6 +22,26 @@ export function setLastUserId(userId: string): void {
   } catch {}
 }
 
+export function clearBooksCache(userId: string): void {
+  try {
+    localStorage.removeItem(cacheKey(userId));
+  } catch {}
+}
+
+// ログイン成功時に呼ぶ: 指定ユーザー以外の本棚キャッシュを全削除し、last-userを更新する。
+// 端末共有でアカウントが切り替わったとき、前のユーザーのデータが残留・表示されるのを防ぐ。
+export function prepareCacheForUser(userId: string): void {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("bm2-books-") && key !== cacheKey(userId)) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {}
+  setLastUserId(userId);
+}
+
 export function readBooksCache(userId: string): Book[] | null {
   try {
     const raw = localStorage.getItem(cacheKey(userId));

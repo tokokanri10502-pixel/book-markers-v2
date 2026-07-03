@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase-browser";
+import { prepareCacheForUser } from "@/lib/booksCache";
 import { useState, useRef } from "react";
 
 type Step = "email" | "code" | "success";
@@ -71,7 +72,7 @@ export default function LoginPage() {
   const handleVerify = async (token: string) => {
     setLoading(true);
     setError("");
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
       type: "email",
@@ -82,6 +83,10 @@ export default function LoginPage() {
       setCode(["", "", "", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } else {
+      // アカウント切替に備え、他ユーザーの本棚キャッシュをこの端末から削除してから移動
+      // （前の利用者のデータが残留したり一瞬表示されたりするのを防ぐ）
+      const uid = data?.user?.id ?? data?.session?.user?.id;
+      if (uid) prepareCacheForUser(uid);
       setStep("success");
       setTimeout(() => {
         window.location.href = "/";
