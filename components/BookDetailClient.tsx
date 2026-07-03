@@ -21,8 +21,9 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Book, BookStatus } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
+import { patchBookInCache, removeBookFromCache } from "@/lib/booksCache";
 
-export default function BookDetailClient({ book: initialBook }: { book: Book }) {
+export default function BookDetailClient({ book: initialBook, userId }: { book: Book; userId: string }) {
   const router = useRouter();
   const [book, setBook] = useState(initialBook);
   const [isSaving, setIsSaving] = useState(false);
@@ -41,8 +42,15 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
         body: JSON.stringify({ status, rating: rating || null, review }),
       });
       if (!res.ok) throw new Error("保存に失敗しました");
-      setBook({ ...book, status, rating, review });
-      router.refresh();
+      const updated_at = new Date().toISOString();
+      setBook({ ...book, status, rating, review, updated_at });
+      // ホーム一覧のキャッシュにも反映（再取得なしで一覧と整合させる）
+      patchBookInCache(userId, book.id, {
+        status,
+        rating: rating || undefined,
+        review,
+        updated_at,
+      });
       alert("保存しました。");
     } catch (error) {
       console.error("Save error:", error);
@@ -58,8 +66,9 @@ export default function BookDetailClient({ book: initialBook }: { book: Book }) 
     try {
       const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("削除に失敗しました");
-      // フルリロードでキャッシュを確実に破棄してホームへ
-      window.location.href = "/";
+      // キャッシュから直接除去すればフルリロード不要（クライアント遷移で即ホームへ）
+      removeBookFromCache(userId, book.id);
+      router.push("/");
     } catch (error) {
       console.error("Delete error:", error);
       alert("削除に失敗しました。");

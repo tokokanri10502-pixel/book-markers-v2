@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookStatus } from "@/lib/types";
+import { upsertBookInCache } from "@/lib/booksCache";
 import { ConciergeCelebration } from "@/components/ConciergeCelebration";
 
 type ScanResult = {
@@ -124,12 +125,15 @@ export default function ScanPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "登録に失敗しました");
 
+      // 登録した本をホーム一覧のキャッシュへ直接追加（フルリロード不要）
+      upsertBookInCache(result.user_id, result);
+
       const countRes = await fetch("/api/books/count");
       const { count } = await countRes.json();
       if (count % 5 === 0) {
         setCelebration({ show: true, count });
       } else {
-        window.location.href = "/"; // フルリロードでキャッシュを確実にリセット
+        router.push("/");
       }
     } catch (error: any) {
       console.error("Register error:", error);
@@ -151,7 +155,7 @@ export default function ScanPage() {
       <ConciergeCelebration
         show={celebration.show}
         count={celebration.count}
-        onClose={() => { window.location.href = "/"; }}
+        onClose={() => { router.push("/"); }}
       />
       {/* --- NAV BAR --- */}
       <nav className="p-6 flex items-center justify-between z-10">

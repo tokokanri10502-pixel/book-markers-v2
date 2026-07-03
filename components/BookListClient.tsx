@@ -228,7 +228,8 @@ export default function BookListClient({ books }: { books: Book[] }) {
 
       {/* --- BOOK LIST / GRID --- */}
       <section className="px-6 pb-20">
-        <AnimatePresence mode="popLayout">
+        {/* initial={false}: 起動直後の一覧はフェードインさせず即座に出す（体感速度優先） */}
+        <AnimatePresence mode="popLayout" initial={false}>
           {filteredBooks.length > 0 ? (
             viewMode === "list" ? (
             <div className="flex flex-col gap-4">
