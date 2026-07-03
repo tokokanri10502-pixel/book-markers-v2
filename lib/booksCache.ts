@@ -42,9 +42,25 @@ export function prepareCacheForUser(userId: string): void {
   setLastUserId(userId);
 }
 
+// 生のJSON文字列のまま読み書きするアクセサ。取得結果との差分比較
+// （変化なしなら再レンダリングも書き込みもしない）に使う。
+export function readBooksCacheRaw(userId: string): string | null {
+  try {
+    return localStorage.getItem(cacheKey(userId));
+  } catch {
+    return null;
+  }
+}
+
+export function writeBooksCacheRaw(userId: string, raw: string): void {
+  try {
+    localStorage.setItem(cacheKey(userId), raw);
+  } catch {}
+}
+
 export function readBooksCache(userId: string): Book[] | null {
   try {
-    const raw = localStorage.getItem(cacheKey(userId));
+    const raw = readBooksCacheRaw(userId);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as Book[]) : null;
@@ -55,15 +71,15 @@ export function readBooksCache(userId: string): Book[] | null {
 
 export function writeBooksCache(userId: string, books: Book[]): void {
   try {
-    localStorage.setItem(cacheKey(userId), JSON.stringify(books));
+    writeBooksCacheRaw(userId, JSON.stringify(books));
   } catch {}
 }
 
-// 1冊をキャッシュへ反映（既存なら置き換え、新規なら追加して新着順を維持）
+// 1冊をキャッシュへ反映（既存なら置き換え、新規なら追加。順序はソートが決める）
 export function upsertBookInCache(userId: string, book: Book): void {
   const books = readBooksCache(userId);
   if (!books) return;
-  const next = [book, ...books.filter((b) => b.id !== book.id)].sort(
+  const next = [...books.filter((b) => b.id !== book.id), book].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
   writeBooksCache(userId, next);

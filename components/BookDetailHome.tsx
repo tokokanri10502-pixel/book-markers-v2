@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase-browser";
+import { createClient, requireSessionUser } from "@/lib/supabase-browser";
+import BookDetailLoading from "@/app/book/[id]/loading";
 import { Book } from "@/lib/types";
 import {
   getLastUserId,
@@ -39,16 +40,8 @@ export default function BookDetailHome({ id }: { id: string }) {
     //    （編集中の入力は BookDetailClient 側が項目ごとに保護する）。
     (async () => {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        // オフラインではトークン更新失敗でセッションが取れないだけの場合があるので、
-        // キャッシュ表示を維持して留まる
-        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-        window.location.replace("/login");
-        return;
-      }
-      if (cancelled) return;
+      const user = await requireSessionUser(supabase);
+      if (!user || cancelled) return;
 
       const { data, error } = await supabase
         .from("books")
@@ -79,13 +72,8 @@ export default function BookDetailHome({ id }: { id: string }) {
   }, [id]);
 
   if (state.phase === "loading") {
-    return (
-      <div className="flex flex-col min-h-screen items-center pt-24 animate-pulse">
-        <div className="w-48 h-72 bg-navy-800/60 rounded-[32px] border-4 border-slate-800/50 mb-8" />
-        <div className="w-48 h-6 bg-slate-800 rounded-full mb-3" />
-        <div className="w-28 h-4 bg-slate-800/60 rounded-full" />
-      </div>
-    );
+    // ルート遷移時の app/book/[id]/loading.tsx と同じスケルトンを使い、二重定義とチラつきを防ぐ
+    return <BookDetailLoading />;
   }
 
   if (state.phase === "error") {

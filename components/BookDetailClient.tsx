@@ -21,7 +21,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Book, BookStatus } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { patchBookInCache, removeBookFromCache } from "@/lib/booksCache";
+import { upsertBookInCache, removeBookFromCache } from "@/lib/booksCache";
 
 export default function BookDetailClient({ book: initialBook, userId }: { book: Book; userId: string }) {
   const router = useRouter();
@@ -75,17 +75,14 @@ export default function BookDetailClient({ book: initialBook, userId }: { book: 
         body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error("保存に失敗しました");
-      const updated_at = new Date().toISOString();
-      const cachePatch = {
-        updated_at,
-        ...(dirtyRef.current.status ? { status } : {}),
-        ...(dirtyRef.current.rating ? { rating: rating || undefined } : {}),
-        ...(dirtyRef.current.review ? { review } : {}),
-      };
-      setBook({ ...book, ...cachePatch });
-      // ホーム一覧のキャッシュにも反映（再取得なしで一覧と整合させる）
-      patchBookInCache(userId, book.id, cachePatch);
+      // サーバーが確定した行を正としてフォームとキャッシュへ反映する
+      const saved = (await res.json()) as Book;
+      setBook(saved);
+      setStatusState(saved.status);
+      setRatingState(saved.rating || 0);
+      setReviewState(saved.review || "");
       dirtyRef.current = { status: false, rating: false, review: false };
+      upsertBookInCache(userId, saved);
       alert("保存しました。");
     } catch (error) {
       console.error("Save error:", error);

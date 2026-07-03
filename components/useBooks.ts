@@ -1,15 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase-browser";
+import { createClient, requireSessionUser } from "@/lib/supabase-browser";
 import { Book } from "@/lib/types";
 import {
   getLastUserId,
   setLastUserId,
   readBooksCache,
-  writeBooksCache,
+  readBooksCacheRaw,
+  writeBooksCacheRaw,
   clearBooksCache,
 } from "@/lib/booksCache";
+
+// 一覧・分析で使う列だけ取得する。description（AI生成の紹介文・長文）は
+// 一覧に不要なので除外し、転送量とlocalStorage消費を抑える。
+// 詳細ページ（BookDetailHome）が全列を取得してキャッシュへ補完する。
+const LIST_COLUMNS =
+  "id,title,author,publisher,genre,isbn,cover_url,status,review,rating,user_id,created_at,updated_at";
 
 // キャッシュ即表示 → 裏で最新取得して差し替え（stale-while-revalidate）。
 // Supabase無料プランのDB応答(0.5〜1.7秒)を待たずに前回の本棚を先に見せる。
@@ -32,18 +39,8 @@ export function useBooks(): { books: Book[] | null; failed: boolean } {
 
     (async () => {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        // オフラインではトークン更新が失敗してセッションが取れないだけの場合があるので、
-        // キャッシュ表示を維持して留まる（ログイン画面はオフラインでは使えない）
-        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-        // 通常は middleware が /login へ送るが、Service Worker がキャッシュした
-        // ページを未ログイン状態で開いた場合のフォールバック
-        window.location.replace("/login");
-        return;
-      }
-      if (cancelled) return;
+      const user = await requireSessionUser(supabase);
+      if (!user || cancelled) return;
 
       let hasCache = cachedForLastUser !== null;
       if (user.id !== lastUserId) {
@@ -55,17 +52,22 @@ export function useBooks(): { books: Book[] | null; failed: boolean } {
         setLastUserId(user.id);
       }
 
-      // 2. 裏で最新を取得して差し替え＋キャッシュ更新
+      // 2. 裏で最新を取得。表示中のキャッシュと同一なら再レンダリングも書き込みもしない
+      //    （毎回の全リスト再描画によるカクつき防止）
       const { data, error } = await supabase
         .from("books")
-        .select("*")
+        .select(LIST_COLUMNS)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (cancelled) return;
       if (data && !error) {
-        setBooks(data as Book[]);
-        writeBooksCache(user.id, data as Book[]);
+        const fresh = data as unknown as Book[];
+        const freshRaw = JSON.stringify(fresh);
+        if (freshRaw !== readBooksCacheRaw(user.id) || !hasCache) {
+          setBooks(fresh);
+          writeBooksCacheRaw(user.id, freshRaw);
+        }
       } else if (!hasCache) {
         // 取得失敗かつキャッシュなし: 空の本棚（データ消失に見える）ではなくエラー表示にする
         setFailed(true);
