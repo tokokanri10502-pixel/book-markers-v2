@@ -44,6 +44,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon|icon|apple-touch|manifest|.*\\.png|.*\\.svg|.*\\.ico).*)",
+    // Service Worker関連(sw.js/workbox-*/swe-worker-*)は認証の対象外にする。
+    // これを認証リダイレクトするとSWの更新取得が失敗し、端末に新コードが降りてこない。
+    "/((?!_next/static|_next/image|favicon|icon|apple-touch|manifest|sw\\.js|workbox-|swe-worker|.*\\.png|.*\\.svg|.*\\.ico|.*\\.js\\.map).*)",
   ],
 };
