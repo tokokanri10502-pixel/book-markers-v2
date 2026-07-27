@@ -43,6 +43,10 @@ export default function ScanPage() {
   const [celebration, setCelebration] = useState<{ show: boolean; count: number }>({ show: false, count: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);      // カメラ用
   const galleryInputRef = useRef<HTMLInputElement>(null);   // ギャラリー用
+  // 二重登録ガード（同期的なref）。isSaving(state)は finally で戻るうえ登録成功後も
+  // ボタンが押せる状態が残るため、連打・ゴーストタップ・遷移待ち中の再タップで
+  // 同じ本が2重INSERTされていた。成功時はロックを維持し再送信を封じる。
+  const isRegisteringRef = useRef(false);
 
   const startScan = async (base64Image: string) => {
     setIsScanning(true);
@@ -106,6 +110,8 @@ export default function ScanPage() {
 
   const handleRegister = async () => {
     if (!scanResult) return;
+    if (isRegisteringRef.current) return; // すでに登録処理中/登録済みなら何もしない（二重送信防止）
+    isRegisteringRef.current = true;
     setIsSaving(true);
     try {
       const res = await fetch("/api/books", {
@@ -137,10 +143,12 @@ export default function ScanPage() {
       }
     } catch (error: any) {
       console.error("Register error:", error);
+      isRegisteringRef.current = false; // 失敗時のみロック解除して再試行を許可
       alert(`登録に失敗しました: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
+    // 成功時は isRegisteringRef を解除しない＝画面遷移するまで再登録を封じる
   };
 
   const reset = () => {
@@ -148,6 +156,7 @@ export default function ScanPage() {
     setScanResult(null);
     setIsScanning(false);
     setSelectedStatus("plan");
+    isRegisteringRef.current = false; // 新しいスキャンでは再度登録できるようにロック解除
   };
 
   return (
