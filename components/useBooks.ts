@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { createClient, requireSessionUser } from "@/lib/supabase-browser";
 import { Book } from "@/lib/types";
 import {
@@ -11,6 +11,13 @@ import {
   writeBooksCacheRaw,
   clearBooksCache,
 } from "@/lib/booksCache";
+
+// キャッシュ読み込みは「描画前」に行いたい（useEffectだと一瞬スケルトンが描画され、
+// 削除やタブ移動でホームに戻るたびに一覧が一旦消えて見える）。useLayoutEffectは
+// 描画前に走るのでチラつきを防げる。ただしSSR時は動かず警告が出るため、サーバでは
+// useEffectにフォールバックする isomorphic 版を使う。
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 // 一覧・分析で使う列だけ取得する。description（AI生成の紹介文・長文）は
 // 一覧に不要なので除外し、転送量とlocalStorage消費を抑える。
@@ -25,7 +32,7 @@ export function useBooks(): { books: Book[] | null; failed: boolean } {
   const [books, setBooks] = useState<Book[] | null>(null);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     let cancelled = false;
 
     // 1. セッション確認を待たずに前回ユーザーのキャッシュを即表示。
